@@ -245,6 +245,8 @@ typedef enum {
     OSD_WARNING_LINK_QUALITY,
     OSD_WARNING_RSSI_DBM,
     OSD_WARNING_OVER_CAP,
+    //DJI OSD
+    OSD_WARNING_DJI,
     OSD_WARNING_COUNT // MUST BE LAST
 } osdWarningsFlags_e;
 
@@ -345,6 +347,9 @@ void osdUpdate(timeUs_t currentTimeUs);
 void osdStatSetState(uint8_t statIndex, bool enabled);
 bool osdStatGetState(uint8_t statIndex);
 void osdSuppressStats(bool flag);
+//DJI OSD
+bool osdWarnDjiEnabled(void);
+
 void osdAnalyzeActiveElements(void);
 void changeOsdProfileIndex(uint8_t profileIndex);
 uint8_t getCurrentOsdProfileIndex(void);
