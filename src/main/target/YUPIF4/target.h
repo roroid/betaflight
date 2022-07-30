@@ -35,10 +35,6 @@
 #define BEEPER_PWM_HZ           3150 // Beeper PWM frequency in Hz
 
 // Gyro interrupt
-#define USE_EXTI
-#define USE_MPU_DATA_READY_SIGNAL
-// disable GYRO_EXTI when MAX7456 is on same SPI bus as gyro
-// #define USE_GYRO_EXTI
 #define GYRO_1_EXTI_PIN         PC4
 
 #define USE_ACC

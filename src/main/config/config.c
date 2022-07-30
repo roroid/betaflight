@@ -54,6 +54,7 @@
 #include "flight/pid_init.h"
 #include "flight/rpm_filter.h"
 #include "flight/servos.h"
+#include "flight/position.h"
 
 #include "io/beeper.h"
 #include "io/gps.h"
@@ -96,6 +97,8 @@ static bool configIsDirty; /* someone indicated that the config is modified and 
 
 static bool rebootRequired = false;  // set if a config change requires a reboot to take effect
 
+static bool eepromWriteInProgress = false;
+
 pidProfile_t *currentPidProfile;
 
 #ifndef RX_SPI_DEFAULT_PROTOCOL
@@ -124,6 +127,11 @@ PG_RESET_TEMPLATE(systemConfig_t, systemConfig,
     .configurationState = CONFIGURATION_STATE_DEFAULTS_BARE,
     .enableStickArming = false,
 );
+
+bool isEepromWriteInProgress(void)
+{
+    return eepromWriteInProgress;
+}
 
 uint8_t getCurrentPidProfileIndex(void)
 {
@@ -198,6 +206,14 @@ static void validateAndFixRatesSettings(void)
             controlRateProfilesMutable(profileIndex)->rates[axis] = constrain(controlRateProfilesMutable(profileIndex)->rates[axis], 0, ratesSettingLimits[ratesType].srate_limit);
             controlRateProfilesMutable(profileIndex)->rcExpo[axis] = constrain(controlRateProfilesMutable(profileIndex)->rcExpo[axis], 0, ratesSettingLimits[ratesType].expo_limit);
         }
+    }
+}
+
+static void validateAndFixPositionConfig(void)
+{
+    if (positionConfig()->altNumSatsBaroFallback >= positionConfig()->altNumSatsGpsUse) {
+        positionConfigMutable()->altNumSatsGpsUse = POSITION_DEFAULT_ALT_NUM_SATS_GPS_USE;
+        positionConfigMutable()->altNumSatsBaroFallback = POSITION_DEFAULT_ALT_NUM_SATS_BARO_FALLBACK;
     }
 }
 
@@ -586,6 +602,8 @@ static void validateAndFixConfig(void)
     // This should be done at the end of the validation
     targetValidateConfiguration();
 #endif
+
+    validateAndFixPositionConfig();
 }
 
 void validateAndFixGyroConfig(void)
@@ -706,7 +724,7 @@ void validateAndFixGyroConfig(void)
 
 bool readEEPROM(void)
 {
-    suspendRxPwmPpmSignal();
+    suspendRxSignal();
 
     // Sanity check, read flash
     bool success = loadEEPROM();
@@ -717,7 +735,7 @@ bool readEEPROM(void)
 
     activateConfig();
 
-    resumeRxPwmPpmSignal();
+    resumeRxSignal();
 
     return success;
 }
@@ -726,16 +744,19 @@ void writeUnmodifiedConfigToEEPROM(void)
 {
     validateAndFixConfig();
 
-    suspendRxPwmPpmSignal();
-
+    suspendRxSignal();
+    eepromWriteInProgress = true;
     writeConfigToEEPROM();
-
-    resumeRxPwmPpmSignal();
+    eepromWriteInProgress = false;
+    resumeRxSignal();
     configIsDirty = false;
 }
 
 void writeEEPROM(void)
 {
+#ifdef USE_RX_SPI
+    rxSpiStop(); // some rx spi protocols use hardware timer, which needs to be stopped before writing to eeprom
+#endif
     systemConfigMutable()->configurationState = CONFIGURATION_STATE_CONFIGURED;
 
     writeUnmodifiedConfigToEEPROM();

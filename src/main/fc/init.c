@@ -261,6 +261,10 @@ void init(void)
 
     systemInit();
 
+    // Initialize task data as soon as possible. Has to be done before tasksInit(),
+    // and any init code that may try to modify task behaviour before tasksInit().
+    tasksInitData();
+
     // initialize IO (needed for all IO operations)
     IOInitGlobal();
 
@@ -421,7 +425,7 @@ void init(void)
 #endif
     LED2_ON;
 
-#ifdef USE_EXTI
+#if !defined(SIMULATOR_BUILD)
     EXTIInit();
 #endif
 
